@@ -61,6 +61,7 @@ class GenerateReleaseNotes extends Command
             'improvements' => [],
         ];
         foreach ($commits as $commit) {
+            
             $message = $commit['commit']['message'];
             if (str_contains($message, '-bf')) {
                 $categories['bug_fixes'][] = $message;
