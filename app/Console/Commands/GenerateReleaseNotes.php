@@ -29,7 +29,7 @@ class GenerateReleaseNotes extends Command
         $owner = env('GITHUB_OWNER');
         $repo = env('GITHUB_REPO');
         $token = env('GITHUB_TOKEN');
-        $openAiKey = env('OPENAI_API_KEY'); // OpenAI API key
+        $openAiKey = env('OPENAI_API_KEY');
 
         if (!$owner || !$repo || !$token || !$openAiKey) {
             $this->error("GitHub or OpenAI API credentials are missing in .env");
@@ -54,72 +54,120 @@ class GenerateReleaseNotes extends Command
             return;
         }
 
-        // Categorize commits based on tags
+        // Categorize commits based on correct tag detection
         $categories = [
-            'bug_fixes' => [],
-            'features' => [],
-            'changes' => [],
-            'improvements' => [],
+            'Bug Fixes' => [],
+            'New Features' => [],
+            'Changes' => [],
+            'Improvements' => [],
         ];
 
         foreach ($commits as $commit) {
             $message = $commit['commit']['message'];
-            if (str_contains($message, '-bf')) {
-                $categories['bug_fixes'][] = $message;
-            } elseif (str_contains($message, '-fa')) {
-                $categories['features'][] = $message;
-            } elseif (str_contains($message, '-cm')) {
-                $categories['changes'][] = $message;
-            } elseif (str_contains($message, '-im')) {
-                $categories['improvements'][] = $message;
+            $sha = $commit['sha']; // Commit hash
+
+            if (preg_match('/-bf$/', $message)) {
+                $categories['Bug Fixes'][] = $message;
+            } elseif (preg_match('/-fa$/', $message)) {
+                $categories['New Features'][] = $message;
+            } elseif (preg_match('/-cm$/', $message)) {
+                $categories['Changes'][] = $message;
+            } elseif (preg_match('/-im$/', $message)) {
+                $categories['Improvements'][] = $message;
+            } else {
+                // If commit message is vague or has no proper tag, generate a better one
+                $newMessage = $this->generateBetterCommitMessage($owner, $repo, $sha, $openAiKey);
+                $categories['Improvements'][] = $newMessage;
             }
         }
 
-        // Summarize each category using AI
-        $summarizedNotes = [];
+        // Generate AI-based summaries for each category
+        $formattedSummaries = [];
         foreach ($categories as $category => $messages) {
             if (!empty($messages)) {
-                $summarizedNotes[$category] = $this->summarizeWithAI($messages, $openAiKey);
+                $formattedSummaries[$category] = $this->generateImprovedSummary($category, $messages, $openAiKey);
             }
         }
 
-        // Generate final summary of all changes
+        // Generate a final overall summary
         $allCommits = array_merge(...array_values($categories));
-        $finalSummary = $this->summarizeWithAI($allCommits, $openAiKey, "Generate a final high-level summary of all changes.");
+        $finalSummary = $this->generateImprovedSummary("Overall Project Updates", $allCommits, $openAiKey);
 
-        // Generate the release note format
-        $releaseNotes = "Release Notes for " . now()->subDays(10)->format('Y-m-d') . " to " . now()->format('Y-m-d') . ":\n\n";
-        foreach ($summarizedNotes as $category => $summary) {
-            $releaseNotes .= "**" . ucfirst(str_replace('_', ' ', $category)) . ":**\n";
-            $releaseNotes .= "- $summary\n\n";
+        // Format the release notes
+        $releaseNotes = "### 📌 Release Notes (" . now()->subDays(10)->format('Y-m-d') . " to " . now()->format('Y-m-d') . ")\n\n";
+
+        foreach ($formattedSummaries as $category => $summary) {
+            $releaseNotes .= "#### 🔹 $category\n$summary\n\n";
         }
 
-        $releaseNotes .= "**Overall Summary:**\n";
-        $releaseNotes .= "- $finalSummary\n";
+        $releaseNotes .= "#### 🔹 Overall Summary\n$finalSummary\n";
 
-        dd("Final Release Notes", $releaseNotes);
-
-        // Save to a file (Optional)
+        // Save to file and display
         file_put_contents(storage_path('logs/release_notes.txt'), $releaseNotes);
-        $this->info("Release notes saved to storage/logs/release_notes.txt");
+        $this->info("✅ Release notes saved to storage/logs/release_notes.txt");
     }
 
-    // Function to summarize commit messages using AI
-    private function summarizeWithAI($messages, $apiKey, $prompt = "Summarize the following commit messages in a structured way:")
+    // AI-powered summarization with better formatting
+    private function generateImprovedSummary($category, $messages, $apiKey)
     {
         $text = implode("\n", $messages);
+        $prompt = "You are an expert technical writer. Convert the following commit messages into a structured, well-written summary for the category '$category'. Keep it professional and concise:\n\n$text";
+
         $response = Http::withHeaders([
             'Authorization' => "Bearer $apiKey",
             'Content-Type' => 'application/json',
         ])->post("https://api.openai.com/v1/chat/completions", [
-            "model" => "gpt-4",
+            "model" => "gpt-4-turbo",
             "messages" => [
-                ["role" => "system", "content" => $prompt],
-                ["role" => "user", "content" => $text],
+                ["role" => "system", "content" => "You are an AI assistant specialized in generating clean, structured, and informative release notes."],
+                ["role" => "user", "content" => $prompt],
             ],
-            "max_tokens" => 250,
+            "max_tokens" => 300,
         ]);
 
         return $response->json('choices.0.message.content') ?? "No summary available.";
+    }
+
+    // AI-powered commit message generator
+    private function generateBetterCommitMessage($owner, $repo, $sha, $apiKey)
+    {
+        $response = Http::withToken(env('GITHUB_TOKEN'))
+            ->get("https://api.github.com/repos/$owner/$repo/commits/$sha");
+
+        if ($response->failed()) {
+            return "Unknown commit changes (unable to fetch details).";
+        }
+
+        $commitData = $response->json();
+        $files = $commitData['files'] ?? [];
+
+        if (empty($files)) {
+            return "Unknown commit changes (no files modified).";
+        }
+
+        $changes = [];
+        foreach ($files as $file) {
+            $filename = $file['filename'];
+            $patch = substr($file['patch'] ?? '', 0, 500); // Limit to 500 chars for brevity
+
+            $changes[] = "File: $filename\nChanges:\n$patch";
+        }
+
+        $text = implode("\n\n", $changes);
+        $prompt = "Analyze the following code changes and generate a proper commit message:\n\n$text";
+
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer $apiKey",
+            'Content-Type' => 'application/json',
+        ])->post("https://api.openai.com/v1/chat/completions", [
+            "model" => "gpt-4-turbo",
+            "messages" => [
+                ["role" => "system", "content" => "You are an AI assistant that generates well-written commit messages from code changes."],
+                ["role" => "user", "content" => $prompt],
+            ],
+            "max_tokens" => 150,
+        ]);
+
+        return $response->json('choices.0.message.content') ?? "Generated commit message unavailable.";
     }
 }
