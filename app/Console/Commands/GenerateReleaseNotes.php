@@ -29,6 +29,7 @@ class GenerateReleaseNotes extends Command
         $owner = env('GITHUB_OWNER');
         $repo = env('GITHUB_REPO');
         $token = env('GITHUB_TOKEN');
+
         if (!$owner || !$repo || !$token) {
             $this->error("GitHub API credentials are missing in .env");
             return;
@@ -46,8 +47,7 @@ class GenerateReleaseNotes extends Command
         }
 
         $commits = $response->json();
-        dd($commits);
-
+        // dd($commits);
         if (empty($commits)) {
             $this->info("No commits found in the last 10 days.");
             return;
@@ -60,10 +60,9 @@ class GenerateReleaseNotes extends Command
             'changes' => [],
             'improvements' => [],
         ];
-
         foreach ($commits as $commit) {
             $message = $commit['commit']['message'];
-
+            dd(str_contains($message, '-bug fixed'));
             if (str_contains($message, '-bug fixed')) {
                 $categories['bug_fixes'][] = $message;
             } elseif (str_contains($message, '-feature added')) {
@@ -74,11 +73,23 @@ class GenerateReleaseNotes extends Command
                 $categories['improvements'][] = $message;
             }
         }
+        // dd($categories);
+
+        // Summarize each category
+        $summarizedNotes = [];
+        foreach ($categories as $category => $messages) {
+            if (!empty($messages)) {
+                $summarizedNotes[$category] = $this->summarizeCommits($messages);
+            }
+        }
+
+        // Debugging: See the summarized commit messages before formatting
+        dd("Ayush", $summarizedNotes);
 
         // Generate the release note format
         $releaseNotes = "Release Notes for " . now()->subDays(10)->format('Y-m-d') . " to " . now()->format('Y-m-d') . ":\n\n";
 
-        foreach ($categories as $category => $messages) {
+        foreach ($summarizedNotes as $category => $messages) {
             if (!empty($messages)) {
                 $releaseNotes .= "**" . ucfirst(str_replace('_', ' ', $category)) . ":**\n";
                 foreach ($messages as $msg) {
