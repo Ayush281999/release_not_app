@@ -54,53 +54,21 @@ class GenerateReleaseNotes extends Command
             return;
         }
 
-        // Categorize commits based on correct tag detection
-        $categories = [
-            'Bug Fixes' => [],
-            'New Features' => [],
-            'Changes' => [],
-            'Improvements' => [],
-        ];
+        // Process and improve commit messages
+        $processedCommits = [];
 
         foreach ($commits as $commit) {
-            $message = $commit['commit']['message'];
             $sha = $commit['sha']; // Commit hash
-
-            if (preg_match('/-bf$/', $message)) {
-                $categories['Bug Fixes'][] = $message;
-            } elseif (preg_match('/-fa$/', $message)) {
-                $categories['New Features'][] = $message;
-            } elseif (preg_match('/-cm$/', $message)) {
-                $categories['Changes'][] = $message;
-            } elseif (preg_match('/-im$/', $message)) {
-                $categories['Improvements'][] = $message;
-            } else {
-                // If commit message is vague or has no proper tag, generate a better one
-                $newMessage = $this->generateBetterCommitMessage($owner, $repo, $sha, $openAiKey);
-                $categories['Improvements'][] = $newMessage;
-            }
+            $newMessage = $this->generateBetterCommitMessage($owner, $repo, $sha, $openAiKey);
+            $processedCommits[] = $newMessage;
         }
 
-        // Generate AI-based summaries for each category
-        $formattedSummaries = [];
-        foreach ($categories as $category => $messages) {
-            if (!empty($messages)) {
-                $formattedSummaries[$category] = $this->generateImprovedSummary($category, $messages, $openAiKey);
-            }
-        }
-
-        // Generate a final overall summary
-        $allCommits = array_merge(...array_values($categories));
-        $finalSummary = $this->generateImprovedSummary("Overall Project Updates", $allCommits, $openAiKey);
+        // Generate AI-based final summary
+        $finalSummary = $this->generateImprovedSummary("Project Updates", $processedCommits, $openAiKey);
 
         // Format the release notes
         $releaseNotes = "### 📌 Release Notes (" . now()->subDays(10)->format('Y-m-d') . " to " . now()->format('Y-m-d') . ")\n\n";
-
-        foreach ($formattedSummaries as $category => $summary) {
-            $releaseNotes .= "#### 🔹 $category\n$summary\n\n";
-        }
-
-        $releaseNotes .= "#### 🔹 Overall Summary\n$finalSummary\n";
+        $releaseNotes .= "#### 🔹 Summary of Updates\n" . $finalSummary . "\n";
 
         // Save to file and display
         file_put_contents(storage_path('logs/release_notes.txt'), $releaseNotes);
@@ -111,7 +79,7 @@ class GenerateReleaseNotes extends Command
     private function generateImprovedSummary($category, $messages, $apiKey)
     {
         $text = implode("\n", $messages);
-        $prompt = "You are an expert technical writer. Convert the following commit messages into a structured, well-written summary for the category '$category'. Keep it professional and concise:\n\n$text";
+        $prompt = "You are an expert technical writer. Convert the following commit messages into a structured, well-written summary for '$category'. Keep it professional and concise:\n\n$text";
 
         $response = Http::withHeaders([
             'Authorization' => "Bearer $apiKey",
@@ -154,7 +122,7 @@ class GenerateReleaseNotes extends Command
         }
 
         $text = implode("\n\n", $changes);
-        $prompt = "Analyze the following code changes and generate a proper commit message:\n\n$text";
+        $prompt = "Analyze the following code changes and generate a clear, professional commit message:\n\n$text";
 
         $response = Http::withHeaders([
             'Authorization' => "Bearer $apiKey",
