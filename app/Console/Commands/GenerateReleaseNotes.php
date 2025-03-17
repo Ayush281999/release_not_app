@@ -29,9 +29,10 @@ class GenerateReleaseNotes extends Command
         $owner = env('GITHUB_OWNER');
         $repo = env('GITHUB_REPO');
         $token = env('GITHUB_TOKEN');
+        $openAiKey = env('OPENAI_API_KEY'); // OpenAI API key
 
-        if (!$owner || !$repo || !$token) {
-            $this->error("GitHub API credentials are missing in .env");
+        if (!$owner || !$repo || !$token || !$openAiKey) {
+            $this->error("GitHub or OpenAI API credentials are missing in .env");
             return;
         }
 
@@ -41,13 +42,13 @@ class GenerateReleaseNotes extends Command
             ->get("https://api.github.com/repos/$owner/$repo/commits", [
                 'since' => $since,
             ]);
+
         if ($response->failed()) {
             $this->error("Failed to fetch commits from GitHub.");
             return;
         }
 
         $commits = $response->json();
-        // dd($commits);
         if (empty($commits)) {
             $this->info("No commits found in the last 10 days.");
             return;
@@ -60,8 +61,8 @@ class GenerateReleaseNotes extends Command
             'changes' => [],
             'improvements' => [],
         ];
+
         foreach ($commits as $commit) {
-            
             $message = $commit['commit']['message'];
             if (str_contains($message, '-bf')) {
                 $categories['bug_fixes'][] = $message;
@@ -73,54 +74,52 @@ class GenerateReleaseNotes extends Command
                 $categories['improvements'][] = $message;
             }
         }
-        // dd($categories);
 
-        // Summarize each category
+        // Summarize each category using AI
         $summarizedNotes = [];
         foreach ($categories as $category => $messages) {
             if (!empty($messages)) {
-                $summarizedNotes[$category] = $this->summarizeCommits($messages);
+                $summarizedNotes[$category] = $this->summarizeWithAI($messages, $openAiKey);
             }
         }
 
-        // Debugging: See the summarized commit messages before formatting
-        dd("Ayush", $summarizedNotes);
+        // Generate final summary of all changes
+        $allCommits = array_merge(...array_values($categories));
+        $finalSummary = $this->summarizeWithAI($allCommits, $openAiKey, "Generate a final high-level summary of all changes.");
 
         // Generate the release note format
         $releaseNotes = "Release Notes for " . now()->subDays(10)->format('Y-m-d') . " to " . now()->format('Y-m-d') . ":\n\n";
-
-        foreach ($summarizedNotes as $category => $messages) {
-            if (!empty($messages)) {
-                $releaseNotes .= "**" . ucfirst(str_replace('_', ' ', $category)) . ":**\n";
-                foreach ($messages as $msg) {
-                    $releaseNotes .= "- $msg\n";
-                }
-                $releaseNotes .= "\n";
-            }
+        foreach ($summarizedNotes as $category => $summary) {
+            $releaseNotes .= "**" . ucfirst(str_replace('_', ' ', $category)) . ":**\n";
+            $releaseNotes .= "- $summary\n\n";
         }
 
-        // Output the release notes
-        $this->info($releaseNotes);
+        $releaseNotes .= "**Overall Summary:**\n";
+        $releaseNotes .= "- $finalSummary\n";
+
+        dd("Final Release Notes", $releaseNotes);
 
         // Save to a file (Optional)
         file_put_contents(storage_path('logs/release_notes.txt'), $releaseNotes);
-
         $this->info("Release notes saved to storage/logs/release_notes.txt");
     }
 
-    private function summarizeCommits($messages)
+    // Function to summarize commit messages using AI
+    private function summarizeWithAI($messages, $apiKey, $prompt = "Summarize the following commit messages in a structured way:")
     {
-        $summary = [];
-        foreach ($messages as $message) {
-            $cleanedMessage = trim(preg_replace('/[^a-zA-Z0-9\s]/', '', $message)); // Remove special characters
-            $key = strtolower(explode(' ', $cleanedMessage, 3)[2] ?? $cleanedMessage); // Extract key phrase
+        $text = implode("\n", $messages);
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer $apiKey",
+            'Content-Type' => 'application/json',
+        ])->post("https://api.openai.com/v1/chat/completions", [
+            "model" => "gpt-4",
+            "messages" => [
+                ["role" => "system", "content" => $prompt],
+                ["role" => "user", "content" => $text],
+            ],
+            "max_tokens" => 250,
+        ]);
 
-            if (!isset($summary[$key])) {
-                $summary[$key] = $cleanedMessage;
-            } else {
-                $summary[$key] .= ", " . $cleanedMessage;
-            }
-        }
-        return array_values($summary);
+        return $response->json('choices.0.message.content') ?? "No summary available.";
     }
 }
