@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Http;
 
 class GenerateReleaseNotes extends Command
 {
@@ -25,48 +26,75 @@ class GenerateReleaseNotes extends Command
      */
     public function handle()
     {
-        // Get commit messages from the last 10 days
-        $commits = shell_exec("git log --since='10 days ago' --pretty=format:'%s'");
-        $commitMessages = explode("\n", trim($commits));
+        $owner = env('GITHUB_OWNER');
+        $repo = env('GITHUB_REPO');
+        $token = env('GITHUB_TOKEN');
+        if (!$owner || !$repo || !$token) {
+            $this->error("GitHub API credentials are missing in .env");
+            return;
+        }
 
-        // Define categories
+        // Get commits from the last 10 days
+        $since = now()->subDays(10)->toIso8601String();
+        $response = Http::withToken($token)
+            ->get("https://api.github.com/repos/$owner/$repo/commits", [
+                'since' => $since,
+            ]);
+        if ($response->failed()) {
+            $this->error("Failed to fetch commits from GitHub.");
+            return;
+        }
+
+        $commits = $response->json();
+        dd($commits);
+
+        if (empty($commits)) {
+            $this->info("No commits found in the last 10 days.");
+            return;
+        }
+
+        // Categorize commits based on tags
         $categories = [
-            'Bug Fixes' => '-bug fixed',
-            'Features Added' => '-feature added',
-            'Changes Made' => '-changes made',
-            'Improvements' => '-improvement',
+            'bug_fixes' => [],
+            'features' => [],
+            'changes' => [],
+            'improvements' => [],
         ];
-        dd($commitMessages);
-        // Categorize commit messages
-        $categorizedCommits = [];
-        foreach ($commitMessages as $commit) {
-            foreach ($categories as $category => $tag) {
-                if (strpos($commit, $tag) !== false) {
-                    $categorizedCommits[$category][] = str_replace($tag, '', $commit);
-                    break;
+
+        foreach ($commits as $commit) {
+            $message = $commit['commit']['message'];
+
+            if (str_contains($message, '-bug fixed')) {
+                $categories['bug_fixes'][] = $message;
+            } elseif (str_contains($message, '-feature added')) {
+                $categories['features'][] = $message;
+            } elseif (str_contains($message, '-changes made')) {
+                $categories['changes'][] = $message;
+            } elseif (str_contains($message, '-improvement')) {
+                $categories['improvements'][] = $message;
+            }
+        }
+
+        // Generate the release note format
+        $releaseNotes = "Release Notes for " . now()->subDays(10)->format('Y-m-d') . " to " . now()->format('Y-m-d') . ":\n\n";
+
+        foreach ($categories as $category => $messages) {
+            if (!empty($messages)) {
+                $releaseNotes .= "**" . ucfirst(str_replace('_', ' ', $category)) . ":**\n";
+                foreach ($messages as $msg) {
+                    $releaseNotes .= "- $msg\n";
                 }
+                $releaseNotes .= "\n";
             }
         }
 
-        // Summarize commit messages
-        foreach ($categorizedCommits as $category => $messages) {
-            $categorizedCommits[$category] = $this->summarizeCommits($messages);
-        }
+        // Output the release notes
+        $this->info($releaseNotes);
 
-        // Format release notes
-        $releaseNotes = "Release Notes for " . now()->subDays(10)->toDateString() . " to " . now()->toDateString() . ":\n\n";
-        foreach ($categorizedCommits as $category => $messages) {
-            $releaseNotes .= "**$category:**\n";
-            foreach ($messages as $message) {
-                $releaseNotes .= "- " . trim($message) . "\n";
-            }
-            $releaseNotes .= "\n";
-        }
+        // Save to a file (Optional)
+        file_put_contents(storage_path('logs/release_notes.txt'), $releaseNotes);
 
-        // Save release notes to a file
-        File::put(storage_path('logs/release_notes.txt'), $releaseNotes);
-
-        $this->info("Release notes generated successfully.");
+        $this->info("Release notes saved to storage/logs/release_notes.txt");
     }
 
     private function summarizeCommits($messages)
