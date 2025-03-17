@@ -79,7 +79,7 @@ class GenerateReleaseNotes extends Command
     private function generateImprovedSummary($category, $messages, $apiKey)
     {
         $text = implode("\n", $messages);
-        $prompt = "You are an expert technical writer. Convert the following commit messages into a structured, well-written summary for '$category'. Keep it professional and concise:\n\n$text";
+        $prompt = "You are an expert release notes writer. Summarize the following updates in a **professional and user-friendly** manner, making it feel like an announcement. Avoid technical jargon where possible, and use engaging wording to highlight the improvements.\n\nHere are the updates:\n$text\n\nWrite in a format suitable for a product release note.";
 
         $response = Http::withHeaders([
             'Authorization' => "Bearer $apiKey",
