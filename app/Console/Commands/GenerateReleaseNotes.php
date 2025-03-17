@@ -60,7 +60,6 @@ class GenerateReleaseNotes extends Command
             'changes' => [],
             'improvements' => [],
         ];
-        
         foreach ($commits as $commit) {
             $message = $commit['commit']['message'];
             if (str_contains($message, '-bf')) {
