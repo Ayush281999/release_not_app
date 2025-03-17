@@ -62,14 +62,13 @@ class GenerateReleaseNotes extends Command
         ];
         foreach ($commits as $commit) {
             $message = $commit['commit']['message'];
-            dd(str_contains($message, '-bug fixed'));
-            if (str_contains($message, '-bug fixed')) {
+            if (str_contains($message, '-bf')) {
                 $categories['bug_fixes'][] = $message;
-            } elseif (str_contains($message, '-feature added')) {
+            } elseif (str_contains($message, '-fa')) {
                 $categories['features'][] = $message;
-            } elseif (str_contains($message, '-changes made')) {
+            } elseif (str_contains($message, '-cm')) {
                 $categories['changes'][] = $message;
-            } elseif (str_contains($message, '-improvement')) {
+            } elseif (str_contains($message, '-im')) {
                 $categories['improvements'][] = $message;
             }
         }
