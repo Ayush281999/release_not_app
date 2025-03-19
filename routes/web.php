@@ -25,3 +25,6 @@ Route::get('/test2', function () {
 Route::get('/webinar', function () {
     return view('welcome-webinar');
 });
+Route::get('/session', function () {
+    return view('welcome-session');
+});
