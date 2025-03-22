@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 
@@ -36,11 +37,21 @@ class GenerateReleaseNotes extends Command
             return;
         }
 
-        // Get commits from the last 10 days
-        $since = now()->subDays(10)->toIso8601String();
+        // Get the last release date from the latest GitHub tag
+        $lastTag = $this->getLastGitHubReleaseDate($owner, $repo, $token);
+        $startDate = $lastTag ? Carbon::parse($lastTag['date'])->format('Y-m-d') : $this->getDefaultStartDate();
+        $endDate = now()->format('Y-m-d');
+        $this->info("Fetching commits from $startDate to $endDate...");
+
+        // Convert to ISO 8601 for GitHub API
+        $since = Carbon::parse($startDate)->toIso8601String();
+        $until = Carbon::parse($endDate)->toIso8601String();
+
+        // Fetch commits
         $response = Http::withToken($token)
             ->get("https://api.github.com/repos/$owner/$repo/commits", [
                 'since' => $since,
+                'until' => $until,
             ]);
 
         if ($response->failed()) {
@@ -50,15 +61,14 @@ class GenerateReleaseNotes extends Command
 
         $commits = $response->json();
         if (empty($commits)) {
-            $this->info("No commits found in the last 10 days.");
+            $this->info("No commits found in the selected date range.");
             return;
         }
 
         // Process and improve commit messages
         $processedCommits = [];
-
         foreach ($commits as $commit) {
-            $sha = $commit['sha']; // Commit hash
+            $sha = $commit['sha'];
             $newMessage = $this->generateBetterCommitMessage($owner, $repo, $sha, $openAiKey);
             $processedCommits[] = $newMessage;
         }
@@ -67,13 +77,55 @@ class GenerateReleaseNotes extends Command
         $finalSummary = $this->generateImprovedSummary("Project Updates", $processedCommits, $openAiKey);
 
         // Format the release notes
-        $releaseNotes = "### 📌 Release Notes (" . now()->subDays(10)->format('Y-m-d') . " to " . now()->format('Y-m-d') . ")\n\n";
+        $releaseNotes = "### 📌 Release Notes ($startDate to $endDate)\n\n";
         $releaseNotes .= "#### 🔹 Summary of Updates\n" . $finalSummary . "\n";
 
-        // Save to file and display
-        file_put_contents(storage_path('logs/release_notes.txt'), $releaseNotes);
-        $this->info("✅ Release notes saved to storage/logs/release_notes.txt");
+        // Save to GitHub releases and create a new tag
+        $newTag = 'v' . now()->format('YmdHis');
+        $this->createGitHubRelease($owner, $repo, $token, $newTag, $releaseNotes);
+
+        $this->info("✅ Release notes published and new tag $newTag created.");
     }
+
+    // Fetch the latest GitHub tag
+    private function getLastGitHubReleaseDate($owner, $repo, $token)
+    {
+        $response = Http::withToken($token)
+            ->get("https://api.github.com/repos/$owner/$repo/releases");
+        if ($response->failed() || empty($response->json())) {
+            return null; // No previous releases found
+        }
+
+        $latestRelease = $response->json()[0]; // Get the latest release
+        if (empty($latestRelease['published_at'])) {
+            return null; // No valid release date found
+        }
+
+        return [
+            'name' => $latestRelease['tag_name'],
+            'date' => $latestRelease['published_at'],
+        ];
+    }
+
+    // Determine the default start date dynamically
+    private function getDefaultStartDate()
+    {
+        $installationDate = env('PACKAGE_INSTALLED_DATE', now()->subDays(30)->format('Y-m-d'));
+        return Carbon::parse($installationDate)->addDays(15)->format('Y-m-d');
+    }
+
+    // Create a new GitHub release and tag
+    private function createGitHubRelease($owner, $repo, $token, $tag, $releaseNotes)
+    {
+        Http::withToken($token)->post("https://api.github.com/repos/$owner/$repo/releases", [
+            'tag_name' => $tag,
+            'name' => "Release $tag",
+            'body' => $releaseNotes,
+            'draft' => false,
+            'prerelease' => false
+        ]);
+    }
+
 
     // AI-powered summarization with better formatting
     private function generateImprovedSummary($category, $messages, $apiKey)
