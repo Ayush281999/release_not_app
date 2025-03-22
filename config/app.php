@@ -5,6 +5,11 @@ use Illuminate\Support\ServiceProvider;
 
 return [
 
+    'github_owner' => env('GITHUB_OWNER'),
+    'github_repo' => env('GITHUB_REPO'),
+    'github_token' => env('GITHUB_TOKEN'),
+    'openai_api_key' => env('OPENAI_API_KEY'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Name

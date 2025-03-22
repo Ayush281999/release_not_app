@@ -28,10 +28,10 @@ class GenerateReleaseNotes extends Command
      */
     public function handle()
     {
-        $owner = env('GITHUB_OWNER');
-        $repo = env('GITHUB_REPO');
-        $token = env('GITHUB_TOKEN');
-        $openAiKey = env('OPENAI_API_KEY');
+        $owner = config('app.github_owner');
+        $repo = config('app.github_repo');
+        $token = config('app.github_token');
+        $openAiKey = config('app.openai_api_key');
 
         if (!$owner || !$repo || !$token || !$openAiKey) {
             $this->error("GitHub or OpenAI API credentials are missing in .env");
