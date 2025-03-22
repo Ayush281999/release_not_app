@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Carbon\Carbon;
+use DateTime;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 
@@ -92,18 +93,23 @@ class GenerateReleaseNotes extends Command
     {
         $response = Http::withToken($token)
             ->get("https://api.github.com/repos/$owner/$repo/releases");
+
         if ($response->failed() || empty($response->json())) {
             return null; // No previous releases found
         }
 
         $latestRelease = $response->json()[0]; // Get the latest release
+
         if (empty($latestRelease['published_at'])) {
-            return null; // No valid release date found
+            return null; // No valid release timestamp found
         }
+
+        // Extracting the release timestamp (Date & Time)
+        $releaseTimestamp = new DateTime($latestRelease['published_at']);
 
         return [
             'name' => $latestRelease['tag_name'],
-            'date' => $latestRelease['published_at'],
+            'date' => $releaseTimestamp->format('Y-m-d H:i:s'), // Exact timestamp
         ];
     }
 
