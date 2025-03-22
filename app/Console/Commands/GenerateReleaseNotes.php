@@ -38,21 +38,18 @@ class GenerateReleaseNotes extends Command
             return;
         }
 
-        // Get the last release date from the latest GitHub tag
+        // Get the last release timestamp (exact date & time)
         $lastTag = $this->getLastGitHubReleaseDate($owner, $repo, $token);
-        $startDate = $lastTag ? Carbon::parse($lastTag['date'])->format('Y-m-d') : $this->getDefaultStartDate();
-        $endDate = now()->format('Y-m-d');
-        $this->info("Fetching commits from $startDate to $endDate...");
+        $startTimestamp = $lastTag ? $lastTag['date'] : $this->getDefaultStartDate();
+        $endTimestamp = now()->toIso8601String(); // Current timestamp
 
-        // Convert to ISO 8601 for GitHub API
-        $since = Carbon::parse($startDate)->toIso8601String();
-        $until = Carbon::parse($endDate)->toIso8601String();
+        $this->info("Fetching commits from $startTimestamp to $endTimestamp...");
 
-        // Fetch commits
+        // Fetch commits after the last release timestamp
         $response = Http::withToken($token)
             ->get("https://api.github.com/repos/$owner/$repo/commits", [
-                'since' => $since,
-                'until' => $until,
+                'since' => $startTimestamp,
+                'until' => $endTimestamp,
             ]);
 
         if ($response->failed()) {
@@ -62,7 +59,7 @@ class GenerateReleaseNotes extends Command
 
         $commits = $response->json();
         if (empty($commits)) {
-            $this->info("No commits found in the selected date range.");
+            $this->info("No commits found in the selected time range.");
             return;
         }
 
@@ -78,7 +75,7 @@ class GenerateReleaseNotes extends Command
         $finalSummary = $this->generateImprovedSummary("Project Updates", $processedCommits, $openAiKey);
 
         // Format the release notes
-        $releaseNotes = "### 📌 Release Notes ($startDate to $endDate)\n\n";
+        $releaseNotes = "### 📌 Release Notes ($startTimestamp to $endTimestamp)\n\n";
         $releaseNotes .= "#### 🔹 Summary of Updates\n" . $finalSummary . "\n";
 
         // Save to GitHub releases and create a new tag
@@ -104,12 +101,9 @@ class GenerateReleaseNotes extends Command
             return null; // No valid release timestamp found
         }
 
-        // Extracting the release timestamp (Date & Time)
-        $releaseTimestamp = new DateTime($latestRelease['published_at']);
-
         return [
             'name' => $latestRelease['tag_name'],
-            'date' => $releaseTimestamp->format('Y-m-d H:i:s'), // Exact timestamp
+            'date' => Carbon::parse($latestRelease['published_at'])->toIso8601String(), // Proper timestamp
         ];
     }
 
