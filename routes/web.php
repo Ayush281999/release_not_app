@@ -28,3 +28,6 @@ Route::get('/webinar', function () {
 Route::get('/session', function () {
     return view('welcome-session');
 });
+Route::get('/offer', function () {
+    return view('new-offer');
+});
