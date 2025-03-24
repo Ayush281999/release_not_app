@@ -181,4 +181,15 @@ class GitHubWebhookController extends Controller
 
         return $response->json('choices.0.message.content') ?? "No summary available.";
     }
+
+    private function createGitHubRelease($owner, $repo, $token, $tag, $releaseNotes)
+    {
+        Http::withToken($token)->post("https://api.github.com/repos/$owner/$repo/releases", [
+            'tag_name' => $tag,
+            'name' => "Release $tag",
+            'body' => $releaseNotes,
+            'draft' => false,
+            'prerelease' => false
+        ]);
+    }
 }
