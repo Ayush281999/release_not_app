@@ -14,8 +14,20 @@ class GitHubWebhookController extends Controller
         Log::info("Webhook recasdeived: ");
 
         $payload = $request->all();
+
+        // Decode the nested JSON string
+        if (isset($payload['payload'])) {
+            $decodedPayload = json_decode($payload['payload'], true);
+        } else {
+            $decodedPayload = $payload;
+        }
+
+        // Now you can access release details
+        $release = $decodedPayload['release'] ?? null;
+        $repository = $decodedPayload['repository'] ?? null;
         Log::info("Webhook received: " . json_encode($payload));
         $event = $request->header('X-GitHub-Event');
+        Log::info("Event: " . $event);
 
         $owner = config('app.github_owner');
         $repo = config('app.github_repo');
@@ -26,13 +38,10 @@ class GitHubWebhookController extends Controller
             Log::error("GitHub or OpenAI API credentials are missing.");
             return response()->json(['error' => 'Missing credentials'], 400);
         }
-        Log::info("Received payload: " . json_encode($payload));
-        Log::info("Payload contains 'payload': " . json_encode($payload['payload']));
-        Log::info("Payload contains 'release': " . json_encode($payload['payload']['release']));
-        Log::info("Payload contains 'tag_name': " . $payload['payload']['release']['tag_name']);
+        Log::info("Payload contains 'release':", $release);
 
-        if ($event === 'release' && isset($payload['payload']['release']['tag_name'])) {
-            $tag = $payload['payload']['release']['tag_name'];
+        if ($event === 'release' && isset($release['tag_name'])) {
+            $tag = $release['tag_name'];
             Log::info("Release created: $tag");
             $this->generateReleaseNotes($owner, $repo, $token, $tag, $openAiKey);
         } elseif ($event === 'push' && isset($payload['ref']) && str_starts_with($payload['ref'], 'refs/tags/')) {
