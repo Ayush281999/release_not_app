@@ -123,4 +123,46 @@ class GitHubWebhookController extends Controller
 
         return null;
     }
+
+    private function generateBetterCommitMessage($owner, $repo, $sha, $apiKey)
+    {
+        $response = Http::withToken(env('GITHUB_TOKEN'))
+            ->get("https://api.github.com/repos/$owner/$repo/commits/$sha");
+
+        if ($response->failed()) {
+            return "Unknown commit changes (unable to fetch details).";
+        }
+
+        $commitData = $response->json();
+        $files = $commitData['files'] ?? [];
+
+        if (empty($files)) {
+            return "Unknown commit changes (no files modified).";
+        }
+
+        $changes = [];
+        foreach ($files as $file) {
+            $filename = $file['filename'];
+            $patch = substr($file['patch'] ?? '', 0, 500); // Limit to 500 chars for brevity
+
+            $changes[] = "File: $filename\nChanges:\n$patch";
+        }
+
+        $text = implode("\n\n", $changes);
+        $prompt = "Analyze the following code changes and generate a clear, professional commit message:\n\n$text";
+
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer $apiKey",
+            'Content-Type' => 'application/json',
+        ])->post("https://api.openai.com/v1/chat/completions", [
+            "model" => "gpt-4-turbo",
+            "messages" => [
+                ["role" => "system", "content" => "You are an AI assistant that generates well-written commit messages from code changes."],
+                ["role" => "user", "content" => $prompt],
+            ],
+            "max_tokens" => 150,
+        ]);
+
+        return $response->json('choices.0.message.content') ?? "Generated commit message unavailable.";
+    }
 }
