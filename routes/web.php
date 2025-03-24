@@ -1,6 +1,9 @@
 <?php
 
+use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\GitHubWebhookController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -31,3 +34,4 @@ Route::get('/session', function () {
 Route::get('/offer', function () {
     return view('new-offer');
 });
+Route::post('/github-webhook', [GitHubWebhookController::class, 'handleGitHubWebhook']);
