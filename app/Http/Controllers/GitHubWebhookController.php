@@ -38,15 +38,12 @@ class GitHubWebhookController extends Controller
             Log::error("GitHub or OpenAI API credentials are missing.");
             return response()->json(['error' => 'Missing credentials'], 400);
         }
-        Log::info("Payload contains 'release':", $release);
 
         if ($event === 'release' && isset($release['tag_name'])) {
             $tag = $release['tag_name'];
-            Log::info("Release created: $tag");
             $this->generateReleaseNotes($owner, $repo, $token, $tag, $openAiKey);
         } elseif ($event === 'push' && isset($payload['ref']) && str_starts_with($payload['ref'], 'refs/tags/')) {
             $tag = str_replace('refs/tags/', '', $payload['ref']);
-            Log::info("New tag pushed: $tag");
             $this->generateReleaseNotes($owner, $repo, $token, $tag, $openAiKey);
         } else {
             Log::info("Webhook received but no relevant action.");
@@ -88,8 +85,6 @@ class GitHubWebhookController extends Controller
 
         // Publish the release
         $this->createGitHubRelease($owner, $repo, $token, $newTag, $releaseNotes);
-
-        Log::info("✅ Release notes published for tag $newTag.");
     }
 
     private function fetchCommits($owner, $repo, $token, $since, $until)
