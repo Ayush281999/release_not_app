@@ -165,4 +165,25 @@ class GitHubWebhookController extends Controller
 
         return $response->json('choices.0.message.content') ?? "Generated commit message unavailable.";
     }
+
+    // AI-powered summarization with better formatting
+    private function generateImprovedSummary($category, $messages, $apiKey)
+    {
+        $text = implode("\n", $messages);
+        $prompt = "You are an expert technical writer. Convert the following commit messages into a structured, well-written summary for the category '$category'. Keep it professional and concise:\n\n$text";
+
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer $apiKey",
+            'Content-Type' => 'application/json',
+        ])->post("https://api.openai.com/v1/chat/completions", [
+            "model" => "gpt-4-turbo",
+            "messages" => [
+                ["role" => "system", "content" => "You are an AI assistant specialized in generating clean, structured, and informative release notes."],
+                ["role" => "user", "content" => $prompt],
+            ],
+            "max_tokens" => 300,
+        ]);
+
+        return $response->json('choices.0.message.content') ?? "No summary available.";
+    }
 }
