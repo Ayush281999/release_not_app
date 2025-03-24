@@ -26,6 +26,11 @@ class GitHubWebhookController extends Controller
             Log::error("GitHub or OpenAI API credentials are missing.");
             return response()->json(['error' => 'Missing credentials'], 400);
         }
+        Log::info("Received payload: " . json_encode($payload));
+        Log::info("Payload contains 'payload': " . json_encode($payload['payload']));
+        Log::info("Payload contains 'release': " . json_encode($payload['payload']['release']));
+        Log::info("Payload contains 'tag_name': " . $payload['payload']['release']['tag_name']);
+
         if ($event === 'release' && isset($payload['payload']['release']['tag_name'])) {
             $tag = $payload['payload']['release']['tag_name'];
             Log::info("Release created: $tag");
