@@ -91,7 +91,6 @@ class GitHubWebhookController extends Controller
 
     private function fetchCommits($owner, $repo, $token, $since, $until)
     {
-        Log::info("Fetching commits for repository: $owner/$repo from $since to $until");
 
         $response = Http::withToken($token)
             ->get("https://api.github.com/repos/$owner/$repo/commits", [
