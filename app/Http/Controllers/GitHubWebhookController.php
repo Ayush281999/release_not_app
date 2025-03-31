@@ -11,24 +11,10 @@ class GitHubWebhookController extends Controller
 {
     public function handleGitHubWebhook(Request $request)
     {
-        Log::info("Webhook recasdeived: ");
+        Log::info("Webhook received: " . json_encode($request->all()));
 
         $payload = $request->all();
-
-        // Decode the nested JSON string
-        if (isset($payload['payload'])) {
-            $decodedPayload = json_decode($payload['payload'], true);
-        } else {
-            $decodedPayload = $payload;
-        }
-
-        // Now you can access release details
-        $release = $decodedPayload['release'] ?? null;
-        $repository = $decodedPayload['repository'] ?? null;
-        Log::info("Webhook received: " . json_encode($payload));
         $event = $request->header('X-GitHub-Event');
-        Log::info("Event: " . $event);
-
         $owner = config('app.github_owner');
         $repo = config('app.github_repo');
         $token = config('app.github_token');
@@ -39,26 +25,31 @@ class GitHubWebhookController extends Controller
             return response()->json(['error' => 'Missing credentials'], 400);
         }
 
-        if ($event === 'release' && isset($release['tag_name'])) {
-            $tag = $release['tag_name'];
-            Log::info("Processing release event for tag: $tag");
-            $this->generateReleaseNotes($owner, $repo, $token, $tag, $openAiKey);
+        $tag = null;
+
+        if ($event === 'release' && isset($payload['release']['tag_name'])) {
+            $tag = $payload['release']['tag_name'];
         } elseif ($event === 'push' && isset($payload['ref']) && str_starts_with($payload['ref'], 'refs/tags/')) {
             $tag = str_replace('refs/tags/', '', $payload['ref']);
-            Log::info("Processing push event for tag: $tag");
-            $this->generateReleaseNotes($owner, $repo, $token, $tag, $openAiKey);
-        } else {
-            Log::info("Webhook received but no relevant action.");
         }
 
-        return response()->json(['message' => 'Webhook received'], 200);
+        if (!$tag) {
+            Log::info("Webhook received but no tag found.");
+            return response()->json(['message' => 'No tag found'], 200);
+        }
+
+        Log::info("Processing GitHub event for tag: $tag");
+
+        // Generate release notes and update GitHub release
+        $this->generateReleaseNotes($owner, $repo, $token, $tag, $openAiKey);
+
+        return response()->json(['message' => 'Webhook processed'], 200);
     }
 
     private function generateReleaseNotes($owner, $repo, $token, $newTag, $openAiKey)
     {
-        // Get last release timestamp
         $lastRelease = $this->getLastGitHubReleaseDate($owner, $repo, $token, $newTag);
-        $startTimestamp = $lastRelease ? $lastRelease['date'] : $this->getDefaultStartDate();
+        $startTimestamp = $lastRelease ? Carbon::parse($lastRelease['date'])->toIso8601String() : $this->getDefaultStartDate();
         $endTimestamp = now()->toIso8601String();
 
         Log::info("Fetching commits from $startTimestamp to $endTimestamp...");
@@ -66,11 +57,11 @@ class GitHubWebhookController extends Controller
         $commits = $this->fetchCommits($owner, $repo, $token, $startTimestamp, $endTimestamp);
 
         if (empty($commits)) {
-            Log::info("No commits found in this period.");
+            Log::info("No commits found for this period.");
             return;
         }
 
-        // Process commit messages with AI
+        // Process commit messages using AI
         $processedCommits = [];
         foreach ($commits as $commit) {
             $sha = $commit['sha'];
@@ -78,17 +69,53 @@ class GitHubWebhookController extends Controller
             $processedCommits[] = $newMessage;
         }
 
-        // Generate AI-based final summary
         $finalSummary = $this->generateImprovedSummary("Project Updates", $processedCommits, $openAiKey);
+        Log::info("Improved summary generated: " . $finalSummary);
 
         // Format the release notes
         $releaseNotes = "### 📌 Release Notes ($startTimestamp to $endTimestamp)\n\n";
         $releaseNotes .= "#### 🔹 Summary of Updates\n" . $finalSummary . "\n";
 
-        // Publish the release
-        $this->createGitHubRelease($owner, $repo, $token, $newTag, $releaseNotes);
+        // Check if release exists and update instead of creating a new one
+        $existingReleaseId = $this->getExistingGitHubReleaseId($owner, $repo, $token, $newTag);
+
+        if ($existingReleaseId) {
+            $this->updateGitHubRelease($owner, $repo, $token, $existingReleaseId, $newTag, $releaseNotes);
+        } else {
+            $this->createGitHubRelease($owner, $repo, $token, $newTag, $releaseNotes);
+        }
     }
 
+    private function getExistingGitHubReleaseId($owner, $repo, $token, $tag)
+    {
+        $response = Http::withToken($token)
+            ->get("https://api.github.com/repos/$owner/$repo/releases");
+
+        if ($response->successful()) {
+            foreach ($response->json() as $release) {
+                if ($release['tag_name'] === $tag) {
+                    return $release['id'];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function updateGitHubRelease($owner, $repo, $token, $releaseId, $tag, $releaseNotes)
+    {
+        Log::info("Updating existing GitHub release with tag: $tag");
+
+        $response = Http::withToken($token)->patch("https://api.github.com/repos/$owner/$repo/releases/$releaseId", [
+            'body' => $releaseNotes,
+        ]);
+
+        if ($response->successful()) {
+            Log::info("GitHub release updated successfully.");
+        } else {
+            Log::error("Failed to update GitHub release. Response: " . $response->body());
+        }
+    }
     private function fetchCommits($owner, $repo, $token, $since, $until)
     {
 
