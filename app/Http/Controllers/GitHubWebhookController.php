@@ -104,7 +104,6 @@ class GitHubWebhookController extends Controller
 
     private function updateGitHubRelease($owner, $repo, $token, $releaseId, $tag, $releaseNotes)
     {
-        Log::info("Updating existing GitHub release with tag: $tag");
 
         $response = Http::withToken($token)->patch("https://api.github.com/repos/$owner/$repo/releases/$releaseId", [
             'body' => $releaseNotes,
