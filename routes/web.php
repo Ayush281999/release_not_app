@@ -43,3 +43,7 @@ Route::get('/offer3', function () {
 Route::get('/offer4', function () {
     return view('new-offer4');
 });
+Route::get('/offer5', function () {
+    return view('new-offer5');
+});
+
