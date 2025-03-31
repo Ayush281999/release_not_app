@@ -52,4 +52,6 @@ Route::get('/offer6', function () {
 Route::get('/offer7', function () {
     return view('new-offer7');
 });
-
+Route::get('/offer8', function () {
+    return view('new-offer8');
+});
