@@ -34,3 +34,6 @@ Route::get('/session', function () {
 Route::get('/offer', function () {
     return view('new-offer');
 });
+Route::get('/offer2', function () {
+    return view('new-offer2');
+});
