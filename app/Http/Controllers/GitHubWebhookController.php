@@ -118,11 +118,6 @@ class GitHubWebhookController extends Controller
                 'until' => $until,
             ]);
 
-        if ($response->failed()) {
-            Log::error("Failed to fetch commits. Response: " . $response->body());
-            return [];
-        }
-
         Log::info("Commits fetched successfully. Total commits: " . count($response->json()));
 
         return $response->json();
