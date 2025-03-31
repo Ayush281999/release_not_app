@@ -91,13 +91,22 @@ class GitHubWebhookController extends Controller
 
     private function fetchCommits($owner, $repo, $token, $since, $until)
     {
+        Log::info("Fetching commits for repository: $owner/$repo from $since to $until");
+
         $response = Http::withToken($token)
             ->get("https://api.github.com/repos/$owner/$repo/commits", [
                 'since' => $since,
                 'until' => $until,
             ]);
 
-        return $response->failed() ? [] : $response->json();
+        if ($response->failed()) {
+            Log::error("Failed to fetch commits. Response: " . $response->body());
+            return [];
+        }
+
+        Log::info("Commits fetched successfully. Total commits: " . count($response->json()));
+
+        return $response->json();
     }
 
     private function getLastGitHubReleaseDate($owner, $repo, $token, $currentTag)
