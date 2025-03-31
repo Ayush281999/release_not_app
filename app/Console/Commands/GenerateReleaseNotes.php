@@ -71,8 +71,12 @@ class GenerateReleaseNotes extends Command
             $processedCommits[] = $newMessage;
         }
 
+        $this->info("Processed commit messages: " . implode("\n", $processedCommits));
         // Generate AI-based final summary
+        $this->info("Generating final summary using AI...");
         $finalSummary = $this->generateImprovedSummary("Project Updates", $processedCommits, $openAiKey);
+        $this->info("Final summary generated successfully.");
+        $this->info("Final Summary:\n" . $finalSummary);
 
         // Format the release notes
         $releaseNotes = "### 📌 Release Notes ($startTimestamp to $endTimestamp)\n\n";
