@@ -117,13 +117,21 @@ class GenerateReleaseNotes extends Command
     // Create a new GitHub release and tag
     private function createGitHubRelease($owner, $repo, $token, $tag, $releaseNotes)
     {
-        Http::withToken($token)->post("https://api.github.com/repos/$owner/$repo/releases", [
+        $this->info("Creating a new GitHub release with tag: $tag");
+
+        $response = Http::withToken($token)->post("https://api.github.com/repos/$owner/$repo/releases", [
             'tag_name' => $tag,
             'name' => "Release $tag",
             'body' => $releaseNotes,
             'draft' => false,
             'prerelease' => false
         ]);
+
+        if ($response->successful()) {
+            $this->info("GitHub release created successfully with tag: $tag");
+        } else {
+            $this->error("Failed to create GitHub release. Response: " . $response->body());
+        }
     }
 
 
