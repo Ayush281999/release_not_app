@@ -41,9 +41,11 @@ class GitHubWebhookController extends Controller
 
         if ($event === 'release' && isset($release['tag_name'])) {
             $tag = $release['tag_name'];
+            Log::info("Processing release event for tag: $tag");
             $this->generateReleaseNotes($owner, $repo, $token, $tag, $openAiKey);
         } elseif ($event === 'push' && isset($payload['ref']) && str_starts_with($payload['ref'], 'refs/tags/')) {
             $tag = str_replace('refs/tags/', '', $payload['ref']);
+            Log::info("Processing push event for tag: $tag");
             $this->generateReleaseNotes($owner, $repo, $token, $tag, $openAiKey);
         } else {
             Log::info("Webhook received but no relevant action.");
