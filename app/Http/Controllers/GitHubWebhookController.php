@@ -108,12 +108,6 @@ class GitHubWebhookController extends Controller
         $response = Http::withToken($token)->patch("https://api.github.com/repos/$owner/$repo/releases/$releaseId", [
             'body' => $releaseNotes,
         ]);
-
-        if ($response->successful()) {
-            Log::info("GitHub release updated successfully.");
-        } else {
-            Log::error("Failed to update GitHub release. Response: " . $response->body());
-        }
     }
     private function fetchCommits($owner, $repo, $token, $since, $until)
     {
