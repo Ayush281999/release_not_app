@@ -88,3 +88,6 @@ Route::get('/offer18', function () {
 Route::get('/offer19', function () {
     return view('new-offer19');
 });
+Route::get('/offer20', function () {
+    return view('new-offer20');
+});
