@@ -76,30 +76,3 @@ Route::get('/offer14', function () {
 Route::get('/offer15', function () {
     return view('new-offer13');
 });
-Route::get('/offer16', function () {
-    return view('new-offer16');
-});
-Route::get('/offer17', function () {
-    return view('new-offer17');
-});
-Route::get('/offer18', function () {
-    return view('new-offer18');
-});
-Route::get('/offer19', function () {
-    return view('new-offer19');
-});
-Route::get('/offer20', function () {
-    return view('new-offer20');
-});
-Route::get('/offer21', function () {
-    return view('new-offer21');
-});
-Route::get('/offer22', function () {
-    return view('new-offer22');
-});
-Route::get('/offer23', function () {
-    return view('new-offer23');
-});
-Route::get('/offer24', function () {
-    return view('new-offer24');
-});
