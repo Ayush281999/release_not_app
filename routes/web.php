@@ -61,18 +61,3 @@ Route::get('/offer9', function () {
 Route::get('/offer10', function () {
     return view('new-offer10');
 });
-Route::get('/offer11', function () {
-    return view('new-offer11');
-});
-Route::get('/offer12', function () {
-    return view('new-offer12');
-});
-Route::get('/offer13', function () {
-    return view('new-offer13');
-});
-Route::get('/offer14', function () {
-    return view('new-offer14');
-});
-Route::get('/offer15', function () {
-    return view('new-offer15');
-});
