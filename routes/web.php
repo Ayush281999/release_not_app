@@ -100,3 +100,6 @@ Route::get('/offer22', function () {
 Route::get('/offer23', function () {
     return view('new-offer23');
 });
+Route::get('/offer24', function () {
+    return view('new-offer24');
+});
