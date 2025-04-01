@@ -118,8 +118,6 @@ class GitHubWebhookController extends Controller
                 'until' => $until,
             ]);
 
-        Log::info("Commits fetched successfully. Total commits: " . count($response->json()));
-
         return $response->json();
     }
 
