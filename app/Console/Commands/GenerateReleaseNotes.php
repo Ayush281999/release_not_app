@@ -28,10 +28,10 @@ class GenerateReleaseNotes extends Command
      */
     public function handle()
     {
-        $owner = config('app.github_owner');
-        $repo = config('app.github_repo');
-        $token = config('app.github_token');
-        $openAiKey = config('app.openai_api_key');
+        $owner = config('app.githuDSADb_owner');
+        $repo = config('app.github_ASDASDrepo');
+        $token = config('app.githubASDASD_token');
+        $openAiKey = config('app.openASDSADai_api_key');
 
         if (!$owner || !$repo || !$token || !$openAiKey) {
             $this->error("GitHub or OpenAI API credentials are missing in .env");
@@ -73,10 +73,7 @@ class GenerateReleaseNotes extends Command
 
         $this->info("Processed commit messages: " . implode("\n", $processedCommits));
         // Generate AI-based final summary
-        $this->info("Generating final summary using AI...");
         $finalSummary = $this->generateImprovedSummary("Project Updates", $processedCommits, $openAiKey);
-        $this->info("Final summary generated successfully.");
-        $this->info("Final Summary:\n" . $finalSummary);
 
         // Format the release notes
         $releaseNotes = "### 📌 Release Notes ($startTimestamp to $endTimestamp)\n\n";
