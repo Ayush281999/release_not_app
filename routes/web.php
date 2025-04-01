@@ -37,48 +37,4 @@ Route::get('/offer', function () {
 Route::get('/offer2', function () {
     return view('new-offer2');
 });
-Route::get('/offer3', function () {
-    return view('new-offer3');
-});
-Route::get('/offer4', function () {
-    return view('new-offer4');
-});
-Route::get('/offer5', function () {
-    return view('new-offer5');
-});
-Route::get('/offer6', function () {
-    return view('new-offer6');
-});
-Route::get('/offer7', function () {
-    return view('new-offer7');
-});
-Route::get('/offer8', function () {
-    return view('new-offer8');
-});
-Route::get('/offer9', function () {
-    return view('new-offer9');
-});
-Route::get('/offer10', function () {
-    return view('new-offer10');
-});
-Route::get('/offer11', function () {
-    return view('new-offer11');
-});
-Route::get('/offer12', function () {
-    return view('new-offer12');
-});
-Route::get('/offer13', function () {
-    return view('new-offer13');
-});
-Route::get('/offer14', function () {
-    return view('new-offer14');
-});
-Route::get('/offer15', function () {
-    return view('new-offer15');
-});
-Route::get('/offer16', function () {
-    return view('new-offer16');
-});
-Route::get('/offer17', function () {
-    return view('new-offer17');
-});
+
