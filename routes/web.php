@@ -58,3 +58,12 @@ Route::get('/offer8', function () {
 Route::get('/offer9', function () {
     return view('new-offer9');
 });
+Route::get('/offer10', function () {
+    return view('new-offer10');
+});
+Route::get('/offer11', function () {
+    return view('new-offer11');
+});
+Route::get('/offer12', function () {
+    return view('new-offer12');
+});
