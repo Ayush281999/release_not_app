@@ -70,9 +70,3 @@ Route::get('/offer12', function () {
 Route::get('/offer13', function () {
     return view('new-offer13');
 });
-Route::get('/offer14', function () {
-    return view('new-offer13');
-});
-Route::get('/offer15', function () {
-    return view('new-offer13');
-});
