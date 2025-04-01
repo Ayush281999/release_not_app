@@ -26,7 +26,7 @@ class GenerateReleaseNotes extends Command
     /**
      * Execute the console command.
      */
-    public function handleReleaseNote()
+    public function handle()
     {
         $owner = config('app.github_owner');
         $repo = config('app.github_repo');
