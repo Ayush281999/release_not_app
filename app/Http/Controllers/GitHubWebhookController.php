@@ -189,7 +189,6 @@ class GitHubWebhookController extends Controller
     {
         $text = implode("\n", $messages);
         $prompt = "You are an expert technical writer. Convert the following commit messages into a structured, well-written summary for the category '$category'. Keep it professional and concise:\n\n$text";
-        $hh = '';
         $response = Http::withHeaders([
             'Authorization' => "Bearer $apiKey",
             'Content-Type' => 'application/json',
