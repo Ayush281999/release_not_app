@@ -58,10 +58,6 @@ class GenerateReleaseNotes extends Command
         }
 
         $commits = $response->json();
-        if (empty($commits)) {
-            $this->info("No commits found in the selected time range.");
-            return;
-        }
 
         // Process and improve commit messages
         $processedCommits = [];
@@ -71,7 +67,6 @@ class GenerateReleaseNotes extends Command
             $processedCommits[] = $newMessage;
         }
 
-        $this->info("Processed commit messages: " . implode("\n", $processedCommits));
         // Generate AI-based final summary
         $finalSummary = $this->generateImprovedSummary("Project Updates", $processedCommits, $openAiKey);
 
@@ -118,7 +113,6 @@ class GenerateReleaseNotes extends Command
     // Create a new GitHub release and tag
     private function createGitHubRelease($owner, $repo, $token, $tag, $releaseNotes)
     {
-        $this->info("Creating a new GitHub release with tag: $tag");
 
         $response = Http::withToken($token)->post("https://api.github.com/repos/$owner/$repo/releases", [
             'tag_name' => $tag,
